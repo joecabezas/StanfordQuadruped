@@ -7,7 +7,7 @@ from sim.IMU import IMU
 from sim.Sim import Sim
 from common.Controller import Controller
 from common.Command import Command
-from common.JoystickInterface import JoystickInterface
+from common.LocalJoystickInterface import LocalJoystickInterface
 from common.State import State
 from sim.HardwareInterface import HardwareInterface
 from pupper.Config import Configuration
@@ -36,16 +36,16 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
     command.activate_event = 0
     command.trot_event = 1
     controller.run(state, command)
+
     command = Command()  # zero it out
 
     # Apply a constant command. # TODO Add support for user input or an external commander
     command.horizontal_velocity = default_velocity
     command.yaw_rate = default_yaw_rate
 
-    # The joystick service is linux-only, so commenting out for mac
-    # print("Creating joystick listener...")
-    # joystick_interface = JoystickInterface(config)
-    # print("Done.")
+    print("Creating joystick listener...")
+    joystick_interface = LocalJoystickInterface(config)
+    print("Done.")
 
     print("Summary of gait parameters:")
     print("overlap time: ", config.overlap_time)
@@ -62,6 +62,26 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
     last_control_update = 0
     start = time.time()
 
+    while True:
+        # Get IMU measurement if enabled
+        state.quat_orientation = (
+            imu.read_orientation() if use_imu else np.array([1, 0, 0, 0])
+        )
+
+        command = joystick_interface.get_command(state)
+
+        # Step the controller forward by dt
+        controller.run(state, command)
+
+        # Update the pwm widths going to the servos
+        hardware_interface.set_actuator_postions(state.joint_angles)
+
+        # Simulate physics for 1/240 seconds (the default timestep)
+        sim.step()
+
+        time.sleep(0.000001)
+
+
     for steps in range(timesteps):
         sim_time_elapsed = sim_dt * steps
         if sim_time_elapsed - last_control_update > config.dt:
@@ -71,6 +91,8 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
             state.quat_orientation = (
                 imu.read_orientation() if use_imu else np.array([1, 0, 0, 0])
             )
+
+            command = joystick_interface.get_command(state)
 
             # Step the controller forward by dt
             controller.run(state, command)
@@ -93,4 +115,4 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
 
 
 if __name__ == "__main__":
-    main(default_velocity=np.array([0.15, 0]))
+    main(default_velocity=np.array([0, 0]))

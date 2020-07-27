@@ -1,6 +1,7 @@
+import math
+
 import pybullet
 import pybullet_data
-
 
 class Sim:
     def __init__(
@@ -25,5 +26,17 @@ class Sim:
             print(pybullet.getJointInfo(self.model[1], i))
         self.joint_indices = list(range(0, 24, 2))
 
+    def setCamera(self, modelId):
+        position, orientation = pybullet.getBasePositionAndOrientation(modelId)
+        x,y,z = pybullet.getEulerFromQuaternion(orientation)
+        yaw = (z * 180.0 / math.pi) - 90
+        pybullet.resetDebugVisualizerCamera(
+            cameraDistance=1,
+            cameraYaw=45,
+            cameraPitch=-40,
+            cameraTargetPosition=position
+        )
+
     def step(self):
+        self.setCamera(self.model[1])
         pybullet.stepSimulation()
