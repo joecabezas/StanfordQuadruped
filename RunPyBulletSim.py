@@ -62,26 +62,6 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
     last_control_update = 0
     start = time.time()
 
-    while True:
-        # Get IMU measurement if enabled
-        state.quat_orientation = (
-            imu.read_orientation() if use_imu else np.array([1, 0, 0, 0])
-        )
-
-        command = joystick_interface.get_command(state)
-
-        # Step the controller forward by dt
-        controller.run(state, command)
-
-        # Update the pwm widths going to the servos
-        hardware_interface.set_actuator_postions(state.joint_angles)
-
-        # Simulate physics for 1/240 seconds (the default timestep)
-        sim.step()
-
-        time.sleep(0.000001)
-
-
     for steps in range(timesteps):
         sim_time_elapsed = sim_dt * steps
         if sim_time_elapsed - last_control_update > config.dt:
@@ -103,6 +83,9 @@ def main(use_imu=False, default_velocity=np.zeros(2), default_yaw_rate=0.0):
         # Simulate physics for 1/240 seconds (the default timestep)
         sim.step()
 
+        time.sleep(sim_dt)
+
+        continue
         # Performance testing
         elapsed = time.time() - start
         if (steps % 60) == 0:
